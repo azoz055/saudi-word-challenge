@@ -1,12 +1,12 @@
 {
-  "name": "تحدي كلمات السعودية",
-  "short_name": "كلمات السعودية",
+  "name": "صقر الطريق",
+  "short_name": "صقر الطريق",
   "start_url": "./",
   "display": "standalone",
   "dir": "rtl",
   "lang": "ar",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
   "icons": [
     {
       "src": "./icons/icon.svg",
