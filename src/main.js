@@ -75,10 +75,10 @@ addEventListener('resize', resize); visualViewport?.addEventListener('resize', r
 
 function reset() {
   state = {
-    lane: 1, targetLane: 1, playerY: playerYForHeight(H), speed: 335, distance: 0, score: 0,
-    health: 3, combo: 1, boost: 0, nitro: 45, shield: 0, chase: 18, level: 0,
+    lane: 1, targetLane: 1, playerY: playerYForHeight(H), speed: 300, distance: 0, score: 0,
+    health: 3, combo: 1, boost: 0, nitro: 55, shield: 1, chase: 12, level: 0, grace: 2.4,
     missionCoins: 0, missionNitro: 0, missionDistance: 0, alive: true,
-    obstacles: [], pickups: [], gates: [], particles: [], sparks: [], nextObstacle: .75, nextPickup: .9, nextGate: 12,
+    obstacles: [], pickups: [], gates: [], particles: [], sparks: [], nextObstacle: 1.45, nextPickup: .55, nextGate: 14,
     roadOffset: 0, best: Number(localStorage.getItem('falcon-best') || 0), nitroPressed: false
   };
   toast('مهمة الرياض بدأت');
@@ -114,6 +114,7 @@ function update(dt) {
   if (!state.alive) return;
   const boostMul = state.boost > 0 ? 1.55 : 1;
   state.boost = Math.max(0, state.boost - dt);
+  state.grace = Math.max(0, (state.grace || 0) - dt);
   scoreTick(state, dt, boostMul);
   state.nitro = clamp(state.nitro + dt * 2.8, 0, 100);
   state.roadOffset += state.speed * dt * boostMul;
@@ -127,7 +128,8 @@ function update(dt) {
     o.y += fall;
     if (!o.passed && o.y > state.playerY + 54) { o.passed = true; state.combo = Math.min(12, state.combo + 1); state.score += 55 * state.combo; if(state.combo % 4 === 0) sparkLane(o.lane, 'كومبو x'+state.combo, '#bbf7d0'); }
     if (rectsOverlap(playerRect(), objectRect(o))) {
-      o.hit = true; shake = 15; burst(laneX(Math.round(state.lane)), state.playerY, '#fb7185', 22);
+      o.hit = true; shake = state.grace > 0 ? 5 : 15; burst(laneX(Math.round(state.lane)), state.playerY, state.grace > 0 ? '#38bdf8' : '#fb7185', state.grace > 0 ? 10 : 22);
+      if (state.grace > 0) { sparkLane(Math.round(state.lane), 'انطلاقة آمنة', '#38bdf8'); continue; }
       const outcome = applyCollision(state, o.type === 'oil' ? 0.5 : 1);
       if (outcome === 'shield') { sparkLane(Math.round(state.lane), 'درع!', '#38bdf8'); }
       else if (outcome === 'gameover') { gameOver(); return; }
