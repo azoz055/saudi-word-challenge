@@ -1,6 +1,6 @@
 {
-  "name": "صقر الطريق",
-  "short_name": "صقر الطريق",
+  "name": "مطاردة صقر الطريق",
+  "short_name": "صقر المطاردة",
   "start_url": "./",
   "display": "standalone",
   "dir": "rtl",
