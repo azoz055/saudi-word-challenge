@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://azoz055.github.io/saudi-word-challenge/sitemap.xml
