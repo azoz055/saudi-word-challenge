@@ -1,17 +1,1 @@
-{
-  "name": "مطاردة صقر الطريق",
-  "short_name": "صقر المطاردة",
-  "start_url": "./",
-  "display": "standalone",
-  "dir": "rtl",
-  "lang": "ar",
-  "background_color": "#0b1020",
-  "theme_color": "#0b1020",
-  "icons": [
-    {
-      "src": "./icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
-  ]
-}
+{"name":"رادار السوق السعودي","short_name":"رادار الأسهم","start_url":"./","display":"standalone","background_color":"#07111f","theme_color":"#14b8a6","lang":"ar","dir":"rtl","description":"منصة إيجنتات لتحليل الأسهم السعودية"}
