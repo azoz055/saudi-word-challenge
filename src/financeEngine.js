@@ -136,29 +136,108 @@ export function normalizeLots(holding) {
     .filter((lot) => lot.quantity > 0);
 }
 
+export function normalizeSales(holding) {
+  return (Array.isArray(holding.sales) ? holding.sales : [])
+    .map((sale) => {
+      const quantity = Number(sale.quantity) || 0;
+      const price = Number(sale.price) || 0;
+      const commission = Number(sale.commission) || 0;
+      const tax = Number(sale.tax) || 0;
+      const gross = roundMoney(quantity * price);
+      const proceeds = roundMoney(gross - commission - tax);
+      return { ...sale, quantity, price, commission, tax, gross, proceeds };
+    })
+    .filter((sale) => sale.quantity > 0);
+}
+
+function allocateSalesToLots(lots, sales) {
+  const remainingLots = lots.map((lot) => ({
+    ...lot,
+    remainingQuantity: lot.quantity,
+    remainingCost: lot.cost,
+  }));
+  let realizedCost = 0;
+  let soldQuantity = 0;
+  for (const sale of sales) {
+    let qtyToAllocate = sale.quantity;
+    soldQuantity += sale.quantity;
+    for (const lot of remainingLots) {
+      if (qtyToAllocate <= 0) break;
+      if (lot.remainingQuantity <= 0) continue;
+      const used = Math.min(lot.remainingQuantity, qtyToAllocate);
+      const unitCost = lot.cost / lot.quantity;
+      const costSlice = roundMoney(unitCost * used);
+      lot.remainingQuantity = roundAverage(lot.remainingQuantity - used);
+      lot.remainingCost = roundMoney(lot.remainingCost - costSlice);
+      realizedCost = roundMoney(realizedCost + costSlice);
+      qtyToAllocate = roundAverage(qtyToAllocate - used);
+    }
+  }
+  return { remainingLots, realizedCost, soldQuantity };
+}
+
 export function calculatePortfolio(holdings, priceMap) {
   const grouped = new Map();
   for (const holding of holdings) {
     const symbol = holding.symbol;
     if (!symbol) continue;
     const lots = normalizeLots(holding);
-    if (!grouped.has(symbol)) grouped.set(symbol, { symbol, lots: [] });
+    const sales = normalizeSales(holding);
+    if (!grouped.has(symbol)) grouped.set(symbol, { symbol, lots: [], sales: [] });
     grouped.get(symbol).lots.push(...lots);
+    grouped.get(symbol).sales.push(...sales);
   }
   const rows = [...grouped.values()].map((group) => {
-    const quantity = group.lots.reduce((sum, lot) => sum + lot.quantity, 0);
-    const cost = roundMoney(group.lots.reduce((sum, lot) => sum + lot.cost, 0));
-    const fees = roundMoney(group.lots.reduce((sum, lot) => sum + lot.commission + lot.tax, 0));
+    const boughtQuantity = group.lots.reduce((sum, lot) => sum + lot.quantity, 0);
+    const buyCost = roundMoney(group.lots.reduce((sum, lot) => sum + lot.cost, 0));
+    const buyFees = roundMoney(group.lots.reduce((sum, lot) => sum + lot.commission + lot.tax, 0));
+    const salesProceeds = roundMoney(group.sales.reduce((sum, sale) => sum + sale.proceeds, 0));
+    const salesFees = roundMoney(group.sales.reduce((sum, sale) => sum + sale.commission + sale.tax, 0));
+    const { remainingLots, realizedCost, soldQuantity } = allocateSalesToLots(group.lots, group.sales);
+    const quantity = roundAverage(remainingLots.reduce((sum, lot) => sum + lot.remainingQuantity, 0));
+    const cost = roundMoney(remainingLots.reduce((sum, lot) => sum + lot.remainingCost, 0));
+    const fees = roundMoney(buyFees + salesFees);
     const avgCost = quantity ? roundAverage(cost / quantity) : 0;
     const price = priceMap[group.symbol] ?? avgCost;
     const value = roundMoney(quantity * price);
-    const pnl = roundMoney(value - cost);
-    return { ...group, quantity, avgCost, price, cost, value, pnl, fees, pnlPct: cost ? (pnl / cost) * 100 : 0 };
+    const unrealizedPnl = roundMoney(value - cost);
+    const realizedPnl = roundMoney(salesProceeds - realizedCost);
+    const pnl = roundMoney(unrealizedPnl + realizedPnl);
+    const status = boughtQuantity > 0 && quantity <= 0 && soldQuantity >= boughtQuantity ? 'منتهي' : 'لم ينتهي';
+    return {
+      ...group,
+      boughtQuantity,
+      soldQuantity,
+      quantity,
+      avgCost,
+      price,
+      buyCost,
+      cost,
+      value,
+      pnl,
+      unrealizedPnl,
+      realizedPnl,
+      realizedCost,
+      salesProceeds,
+      fees,
+      buyFees,
+      salesFees,
+      status,
+      remainingLots,
+      pnlPct: buyCost ? (pnl / buyCost) * 100 : 0,
+      unrealizedPnlPct: cost ? (unrealizedPnl / cost) * 100 : 0,
+      realizedPnlPct: realizedCost ? (realizedPnl / realizedCost) * 100 : 0,
+    };
   });
   const totalCost = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
+  const totalBuyCost = roundMoney(rows.reduce((sum, row) => sum + row.buyCost, 0));
   const totalValue = roundMoney(rows.reduce((sum, row) => sum + row.value, 0));
-  const pnl = roundMoney(totalValue - totalCost);
-  return { rows, totalCost, totalValue, pnl, pnlPct: totalCost ? (pnl / totalCost) * 100 : 0 };
+  const realizedPnl = roundMoney(rows.reduce((sum, row) => sum + row.realizedPnl, 0));
+  const unrealizedPnl = roundMoney(rows.reduce((sum, row) => sum + row.unrealizedPnl, 0));
+  const pnl = roundMoney(realizedPnl + unrealizedPnl);
+  const closedDeals = rows.filter((row) => row.status === 'منتهي').length;
+  const openDeals = rows.length - closedDeals;
+  return { rows, totalCost, totalBuyCost, totalValue, pnl, realizedPnl, unrealizedPnl, closedDeals, openDeals, pnlPct: totalBuyCost ? (pnl / totalBuyCost) * 100 : 0 };
 }
 
 export function marketSessionStatus(date = new Date()) {

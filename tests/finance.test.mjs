@@ -104,6 +104,45 @@ test('calculatePortfolio merges repeated holding rows for the same symbol into o
   assert.equal(result.rows[0].lots.length, 2);
 });
 
+test('calculatePortfolio records sales, realized profit, open quantity, and deal status', () => {
+  const holdings = [
+    { symbol: '2082', lots: [
+      { quantity: 100, price: 380, commission: 59.67, tax: 8.95 },
+      { quantity: 100, price: 380, commission: 58.90, tax: 8.84 },
+    ], sales: [
+      { quantity: 100, price: 395, commission: 61.25, tax: 9.19 },
+    ]},
+  ];
+  const result = calculatePortfolio(holdings, { '2082': 390 });
+  const row = result.rows[0];
+  assert.equal(row.boughtQuantity, 200);
+  assert.equal(row.soldQuantity, 100);
+  assert.equal(row.quantity, 100);
+  assert.equal(row.status, 'لم ينتهي');
+  assert.equal(row.sales[0].proceeds, 39429.56);
+  assert.equal(row.realizedCost, 38068.62);
+  assert.equal(row.realizedPnl, 1360.94);
+  assert.equal(row.cost, 38067.74);
+  assert.equal(row.unrealizedPnl, 932.26);
+  assert.equal(result.realizedPnl, 1360.94);
+  assert.equal(result.openDeals, 1);
+  assert.equal(result.closedDeals, 0);
+});
+
+test('calculatePortfolio marks a deal closed when all purchased shares are sold', () => {
+  const holdings = [{
+    symbol: '2082',
+    lots: [{ quantity: 100, price: 380, commission: 59.67, tax: 8.95 }],
+    sales: [{ quantity: 100, price: 395, commission: 61.25, tax: 9.19 }],
+  }];
+  const result = calculatePortfolio(holdings, { '2082': 390 });
+  assert.equal(result.rows[0].quantity, 0);
+  assert.equal(result.rows[0].status, 'منتهي');
+  assert.equal(result.rows[0].value, 0);
+  assert.equal(result.closedDeals, 1);
+  assert.equal(result.openDeals, 0);
+});
+
 test('marketSessionStatus identifies closed session outside Tadawul hours', () => {
   const friday = new Date('2026-06-12T12:00:00+03:00');
   assert.equal(marketSessionStatus(friday).state, 'مغلق');

@@ -119,21 +119,63 @@ function companyRows(rows) {
 
 function portfolioView(portfolio) {
   return `<section class="panel wide"><div class="section-title"><h2>المحفظة التجريبية</h2><span>${SAR.format(portfolio.totalValue)} — ${fmtPct(portfolio.pnlPct)}</span></div>
-    <p class="helper-note">أضف كل عملية شراء لوحدها لنفس الشركة. النظام يجمع الكميات تلقائياً ويحسب متوسط سعر الشراء شامل عمولة البنك وضريبة الشراء. إذا تركت الضريبة فاضية يحسبها 15٪ من العمولة.</p>
-    <form id="holdingForm" class="holding-form lots-form">
-      <select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select>
-      <input name="quantity" type="number" min="1" placeholder="عدد الأسهم في العملية" required>
-      <input name="price" type="number" step="0.01" min="0" placeholder="سعر الشراء للسهم" required>
-      <input name="commission" type="number" step="0.01" min="0" placeholder="عمولة البنك">
-      <input name="tax" type="number" step="0.01" min="0" placeholder="ضريبة الشراء">
-      <button>إضافة عملية شراء</button>
-    </form>
-    <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>عدد عمليات الشراء</th><th>إجمالي الكمية</th><th>متوسط سعر الشراء شامل الرسوم</th><th>إجمالي الرسوم</th><th>السعر الحالي</th><th>القيمة الحالية</th><th>الربح/الخسارة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h) => `<tr><td>${h.symbol}</td><td>${h.lots.length}</td><td>${h.quantity}</td><td>${SAR.format(h.avgCost)}</td><td>${SAR.format(h.fees)}</td><td>${SAR.format(h.price)}</td><td>${SAR.format(h.value)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove-symbol="${h.symbol}">حذف الشركة</button></td></tr><tr class="lot-row"><td colspan="9">${lotDetails(h)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="helper-note">أضفت لك سجل عمليات مثل الإكسل: عمليات شراء، عمليات بيع، ونتيجة الصفقة. النظام يحسب صافي البيع بعد عمولة البنك والضريبة، ويعرض الحالة: منتهي إذا تم بيع كامل الكمية أو لم ينتهي إذا بقيت أسهم.</p>
+    <div class="portfolio-summary">
+      ${metric('تكلفة الأسهم المتبقية', SAR.format(portfolio.totalCost), 'neutral')}
+      ${metric('القيمة الحالية', SAR.format(portfolio.totalValue), 'neutral')}
+      ${metric('ربح/خسارة محقق من البيع', SAR.format(portfolio.realizedPnl ?? 0), (portfolio.realizedPnl ?? 0) >= 0 ? 'up' : 'down')}
+      ${metric('ربح/خسارة غير محقق', SAR.format(portfolio.unrealizedPnl ?? portfolio.pnl), (portfolio.unrealizedPnl ?? portfolio.pnl) >= 0 ? 'up' : 'down')}
+      ${metric('صفقات مفتوحة / منتهية', `${portfolio.openDeals ?? portfolio.rows.length} / ${portfolio.closedDeals ?? 0}`, 'neutral')}
+    </div>
+    <div class="operation-forms">
+      <form id="holdingForm" class="holding-form lots-form">
+        <h3>إضافة عملية شراء</h3>
+        <select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select>
+        <input name="quantity" type="number" min="1" placeholder="عدد الأسهم شراء" required>
+        <input name="price" type="number" step="0.01" min="0" placeholder="سعر الشراء" required>
+        <input name="commission" type="number" step="0.01" min="0" placeholder="خصم/عمولة البنك">
+        <input name="tax" type="number" step="0.01" min="0" placeholder="ضريبة الشراء">
+        <button>إضافة شراء</button>
+      </form>
+      <form id="saleForm" class="holding-form lots-form sell-form">
+        <h3>إضافة عملية بيع</h3>
+        <select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select>
+        <input name="quantity" type="number" min="1" placeholder="عدد الأسهم المباعة" required>
+        <input name="price" type="number" step="0.01" min="0" placeholder="سعر البيع" required>
+        <input name="commission" type="number" step="0.01" min="0" placeholder="خصم/عمولة البنك">
+        <input name="tax" type="number" step="0.01" min="0" placeholder="ضريبة البيع">
+        <button>إضافة بيع</button>
+      </form>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>شراء</th><th>بيع</th><th>المتبقي</th><th>الحالة</th><th>نتيجة البيع</th><th>نتيجة المتبقي</th><th>إجمالي النتيجة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h) => `<tr><td>${h.symbol}</td><td>${h.lots.length} عملية / ${NUM.format(h.boughtQuantity ?? h.quantity)} سهم</td><td>${h.sales.length} عملية / ${NUM.format(h.soldQuantity ?? 0)} سهم</td><td>${NUM.format(h.quantity)} سهم</td><td>${pill(h.status ?? 'لم ينتهي', h.status === 'منتهي' ? 'neutral' : 'good')}</td><td class="${(h.realizedPnl ?? 0) >= 0 ? 'up':'down'}">${SAR.format(h.realizedPnl ?? 0)}</td><td class="${(h.unrealizedPnl ?? h.pnl) >= 0 ? 'up':'down'}">${SAR.format(h.unrealizedPnl ?? h.pnl)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove-symbol="${h.symbol}">حذف الشركة</button></td></tr><tr class="lot-row"><td colspan="9">${operationDetails(h)}</td></tr>`).join('')}</tbody></table></div>
   </section>`;
 }
 
+function operationDetails(holding) {
+  return `<div class="operations-grid">
+    <div><h3>عمليات الشراء</h3>${lotDetails(holding)}</div>
+    <div><h3>نتيجة العمليات</h3>${resultDetails(holding)}</div>
+    <div><h3>عمليات البيع</h3>${saleDetails(holding)}</div>
+  </div>`;
+}
+
 function lotDetails(holding) {
-  return `<div class="lots-list">${holding.lots.map((lot, index) => `<div><b>شراء ${index + 1}</b><span>${NUM.format(lot.quantity)} سهم × ${SAR.format(lot.price)}</span><span>عمولة: ${SAR.format(lot.commission)} — ضريبة: ${SAR.format(lot.tax)}</span><span>تكلفة العملية: ${SAR.format(lot.cost)}</span><button class="ghost mini" data-remove-lot="${holding.symbol}:${index}">حذف العملية</button></div>`).join('')}</div>`;
+  return `<div class="lots-list">${holding.lots.map((lot, index) => `<div><b>شراء ${index + 1}</b><span>${NUM.format(lot.quantity)} سهم × ${SAR.format(lot.price)}</span><span>مبلغ الشراء: ${SAR.format(lot.gross)} — خصم البنك: ${SAR.format(lot.commission)}</span><span>ضريبة الشراء: ${SAR.format(lot.tax)} — تكلفة العملية: ${SAR.format(lot.cost)}</span><button class="ghost mini" data-remove-lot="${holding.symbol}:${index}">حذف الشراء</button></div>`).join('')}</div>`;
+}
+
+function saleDetails(holding) {
+  if (!holding.sales.length) return '<p class="helper-note">لا توجد عمليات بيع بعد.</p>';
+  return `<div class="lots-list sell-list">${holding.sales.map((sale, index) => `<div><b>بيع ${index + 1}</b><span>${NUM.format(sale.quantity)} سهم × ${SAR.format(sale.price)}</span><span>مبلغ البيع: ${SAR.format(sale.gross)} — خصم البنك: ${SAR.format(sale.commission)}</span><span>ضريبة البيع: ${SAR.format(sale.tax)} — صافي البيع: ${SAR.format(sale.proceeds)}</span><button class="ghost mini" data-remove-sale="${holding.symbol}:${index}">حذف البيع</button></div>`).join('')}</div>`;
+}
+
+function resultDetails(holding) {
+  return `<div class="result-box">
+    <div><span>شراء</span><strong>${SAR.format(holding.buyCost ?? holding.cost)}</strong></div>
+    <div><span>بيع</span><strong>${SAR.format(holding.salesProceeds ?? 0)}</strong></div>
+    <div><span>نتيجة البيع</span><strong class="${(holding.realizedPnl ?? 0) >= 0 ? 'up' : 'down'}">${SAR.format(holding.realizedPnl ?? 0)}</strong></div>
+    <div><span>قيمة المتبقي الآن</span><strong>${SAR.format(holding.value)}</strong></div>
+    <div><span>الحالة</span><strong>${holding.status ?? 'لم ينتهي'}</strong></div>
+  </div>`;
 }
 
 function opportunitiesView() {
@@ -189,6 +231,22 @@ function bindEvents() {
     });
     saveHoldings(); render();
   });
+  document.querySelector('#saleForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const commission = Number(form.get('commission')) || 0;
+    const taxInput = form.get('tax');
+    const tax = taxInput === '' || taxInput === null ? Math.round(commission * 15) / 100 : Number(taxInput) || 0;
+    addSaleOperation({
+      symbol: form.get('symbol'),
+      quantity: Number(form.get('quantity')),
+      price: Number(form.get('price')),
+      commission,
+      tax,
+      date: new Date().toISOString(),
+    });
+    saveHoldings(); render();
+  });
   document.querySelectorAll('[data-remove-symbol]').forEach((btn) => btn.addEventListener('click', () => {
     portfolioHoldings = portfolioHoldings.filter((holding) => holding.symbol !== btn.dataset.removeSymbol);
     saveHoldings(); render();
@@ -198,34 +256,59 @@ function bindEvents() {
     removePurchaseLot(symbol, Number(indexText));
     saveHoldings(); render();
   }));
+  document.querySelectorAll('[data-remove-sale]').forEach((btn) => btn.addEventListener('click', () => {
+    const [symbol, indexText] = btn.dataset.removeSale.split(':');
+    removeSaleOperation(symbol, Number(indexText));
+    saveHoldings(); render();
+  }));
 }
 
 function addPurchaseLot(lot) {
   const existing = portfolioHoldings.find((holding) => holding.symbol === lot.symbol);
   if (!existing) {
-    portfolioHoldings.push({ symbol: lot.symbol, lots: [lot] });
+    portfolioHoldings.push({ symbol: lot.symbol, lots: [lot], sales: [] });
     return;
   }
-  if (!Array.isArray(existing.lots)) {
-    existing.lots = [{ quantity: existing.quantity, price: existing.price ?? existing.avgCost, commission: existing.commission ?? 0, tax: existing.tax ?? 0, date: existing.date }];
-    delete existing.quantity;
-    delete existing.avgCost;
-    delete existing.price;
-    delete existing.commission;
-    delete existing.tax;
-  }
+  ensureHoldingShape(existing);
   existing.lots.push(lot);
+}
+
+function addSaleOperation(sale) {
+  const existing = portfolioHoldings.find((holding) => holding.symbol === sale.symbol);
+  if (!existing) {
+    portfolioHoldings.push({ symbol: sale.symbol, lots: [], sales: [sale] });
+    return;
+  }
+  ensureHoldingShape(existing);
+  existing.sales.push(sale);
+}
+
+function ensureHoldingShape(holding) {
+  if (!Array.isArray(holding.lots)) {
+    holding.lots = [{ quantity: holding.quantity, price: holding.price ?? holding.avgCost, commission: holding.commission ?? 0, tax: holding.tax ?? 0, date: holding.date }];
+    delete holding.quantity;
+    delete holding.avgCost;
+    delete holding.price;
+    delete holding.commission;
+    delete holding.tax;
+  }
+  if (!Array.isArray(holding.sales)) holding.sales = [];
 }
 
 function removePurchaseLot(symbol, lotIndex) {
   const holding = portfolioHoldings.find((item) => item.symbol === symbol);
   if (!holding) return;
-  if (!Array.isArray(holding.lots)) {
-    portfolioHoldings = portfolioHoldings.filter((item) => item.symbol !== symbol);
-    return;
-  }
+  ensureHoldingShape(holding);
   holding.lots.splice(lotIndex, 1);
-  if (holding.lots.length === 0) portfolioHoldings = portfolioHoldings.filter((item) => item.symbol !== symbol);
+  if (holding.lots.length === 0 && holding.sales.length === 0) portfolioHoldings = portfolioHoldings.filter((item) => item.symbol !== symbol);
+}
+
+function removeSaleOperation(symbol, saleIndex) {
+  const holding = portfolioHoldings.find((item) => item.symbol === symbol);
+  if (!holding) return;
+  ensureHoldingShape(holding);
+  holding.sales.splice(saleIndex, 1);
+  if (holding.lots.length === 0 && holding.sales.length === 0) portfolioHoldings = portfolioHoldings.filter((item) => item.symbol !== symbol);
 }
 
 await loadLiveSnapshot();
