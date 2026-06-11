@@ -1,5 +1,5 @@
 {
-  "name": "saudi-word-challenge",
+  "name": "saudi-stock-agents",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/game.test.mjs"
+    "test": "node tests/finance.test.mjs",
+    "update:data": "node scripts/update-market-data.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
