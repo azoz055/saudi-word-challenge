@@ -47,6 +47,7 @@ function fmtPct(n) { return `${n > 0 ? '+' : ''}${NUM.format(n)}٪`; }
 function changeClass(n) { return n > 0 ? 'up' : n < 0 ? 'down' : 'flat'; }
 function selectedStock() { return opportunities.find((s) => s.symbol === selectedSymbol) || opportunities[0]; }
 function priceMap() { return Object.fromEntries(companies.map((s) => [s.symbol, s.price])); }
+function companyInfo(symbol) { return companies.find((s) => s.symbol === symbol) || { symbol, name: symbol }; }
 
 function render() {
   const session = marketSessionStatus();
@@ -170,7 +171,47 @@ function portfolioView(portfolio) {
         <button>إضافة بيع</button>
       </form>
     </div>
+    ${operationsLedger(portfolio)}
     <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>شراء</th><th>بيع</th><th>المتبقي</th><th>الحالة</th><th>نتيجة البيع</th><th>نتيجة المتبقي</th><th>إجمالي النتيجة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h) => `<tr><td>${h.symbol}</td><td>${h.lots.length} عملية / ${NUM.format(h.boughtQuantity ?? h.quantity)} سهم</td><td>${h.sales.length} عملية / ${NUM.format(h.soldQuantity ?? 0)} سهم</td><td>${NUM.format(h.quantity)} سهم</td><td>${pill(h.status ?? 'لم ينتهي', h.status === 'منتهي' ? 'neutral' : 'good')}</td><td class="${(h.realizedPnl ?? 0) >= 0 ? 'up':'down'}">${SAR.format(h.realizedPnl ?? 0)}</td><td class="${(h.unrealizedPnl ?? h.pnl) >= 0 ? 'up':'down'}">${SAR.format(h.unrealizedPnl ?? h.pnl)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove-symbol="${h.symbol}">حذف الشركة</button></td></tr><tr class="lot-row"><td colspan="9">${operationDetails(h)}</td></tr>`).join('')}</tbody></table></div>
+  </section>`;
+}
+
+function portfolioOperationRows(portfolio) {
+  return portfolio.rows.flatMap((holding) => {
+    const info = companyInfo(holding.symbol);
+    const buys = holding.lots.map((lot, index) => ({
+      type: 'شراء', tone: 'good', symbol: holding.symbol, name: info.name, index: index + 1,
+      quantity: lot.quantity, price: lot.price, gross: lot.gross, commission: lot.commission, tax: lot.tax,
+      net: lot.cost, date: lot.date,
+    }));
+    const sales = holding.sales.map((sale, index) => ({
+      type: 'بيع', tone: 'bad', symbol: holding.symbol, name: info.name, index: index + 1,
+      quantity: sale.quantity, price: sale.price, gross: sale.gross, commission: sale.commission, tax: sale.tax,
+      net: sale.proceeds, date: sale.date,
+    }));
+    return [...buys, ...sales];
+  });
+}
+
+function operationDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ar-SA');
+}
+
+function operationsLedger(portfolio) {
+  const rows = portfolioOperationRows(portfolio);
+  if (!rows.length) return '<section class="ledger-section"><h3>سجل العمليات المفصل</h3><p class="helper-note">لا توجد عمليات بعد.</p></section>';
+  return `<section class="ledger-section">
+    <div class="section-title"><h3>سجل العمليات المفصل</h3><span>كل عملية شراء أو بيع تظهر كسطر مستقل</span></div>
+    <div class="table-wrap"><table class="operations-ledger"><thead><tr><th>العملية</th><th>الرمز</th><th>الشركة</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>العمولة</th><th>الضريبة</th><th>الصافي/التكلفة</th><th>التاريخ</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${pill(`${row.type} ${row.index}`, row.tone)}</td><td>${row.symbol}</td><td>${row.name}</td><td>${NUM.format(row.quantity)}</td><td>${SAR.format(row.price)}</td><td>${SAR.format(row.gross)}</td><td>${SAR.format(row.commission)}</td><td>${SAR.format(row.tax)}</td><td><strong>${SAR.format(row.net)}</strong></td><td>${operationDate(row.date)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="operation-ledger-total">
+      ${metric('مجموع تكلفة الشراء', SAR.format(portfolio.totalBuyCost ?? 0), 'neutral')}
+      ${metric('مجموع صافي البيع', SAR.format(portfolio.totalSalesProceeds ?? 0), 'neutral')}
+      ${metric('مجموع كل العمليات', SAR.format((portfolio.totalBuyCost ?? 0) + (portfolio.totalSalesProceeds ?? 0)), 'neutral')}
+      ${metric('مجموع العمولات والضرائب', SAR.format(portfolio.totalFees ?? 0), 'neutral')}
+      ${metric('النتيجة الكاملة', SAR.format(portfolio.pnl), portfolio.pnl >= 0 ? 'up' : 'down')}
+    </div>
   </section>`;
 }
 
