@@ -231,13 +231,34 @@ export function calculatePortfolio(holdings, priceMap) {
   });
   const totalCost = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
   const totalBuyCost = roundMoney(rows.reduce((sum, row) => sum + row.buyCost, 0));
+  const totalSalesProceeds = roundMoney(rows.reduce((sum, row) => sum + row.salesProceeds, 0));
+  const totalFees = roundMoney(rows.reduce((sum, row) => sum + row.fees, 0));
+  const totalBoughtQuantity = roundAverage(rows.reduce((sum, row) => sum + row.boughtQuantity, 0));
+  const totalSoldQuantity = roundAverage(rows.reduce((sum, row) => sum + row.soldQuantity, 0));
+  const netCapitalUsed = roundMoney(totalBuyCost - totalSalesProceeds);
   const totalValue = roundMoney(rows.reduce((sum, row) => sum + row.value, 0));
   const realizedPnl = roundMoney(rows.reduce((sum, row) => sum + row.realizedPnl, 0));
   const unrealizedPnl = roundMoney(rows.reduce((sum, row) => sum + row.unrealizedPnl, 0));
   const pnl = roundMoney(realizedPnl + unrealizedPnl);
   const closedDeals = rows.filter((row) => row.status === 'منتهي').length;
   const openDeals = rows.length - closedDeals;
-  return { rows, totalCost, totalBuyCost, totalValue, pnl, realizedPnl, unrealizedPnl, closedDeals, openDeals, pnlPct: totalBuyCost ? (pnl / totalBuyCost) * 100 : 0 };
+  return {
+    rows,
+    totalCost,
+    totalBuyCost,
+    totalSalesProceeds,
+    totalFees,
+    totalBoughtQuantity,
+    totalSoldQuantity,
+    netCapitalUsed,
+    totalValue,
+    pnl,
+    realizedPnl,
+    unrealizedPnl,
+    closedDeals,
+    openDeals,
+    pnlPct: totalBuyCost ? (pnl / totalBuyCost) * 100 : 0,
+  };
 }
 
 export function marketSessionStatus(date = new Date()) {

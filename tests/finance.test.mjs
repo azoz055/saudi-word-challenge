@@ -143,6 +143,23 @@ test('calculatePortfolio marks a deal closed when all purchased shares are sold'
   assert.equal(result.openDeals, 0);
 });
 
+
+
+test('calculatePortfolio exposes full buy and sell operation totals', () => {
+  const holdings = [{
+    symbol: '2082',
+    lots: [{ quantity: 100, price: 10, commission: 2, tax: 0.3 }],
+    sales: [{ quantity: 40, price: 12, commission: 1, tax: 0.15 }],
+  }];
+  const result = calculatePortfolio(holdings, { '2082': 11 });
+  assert.equal(result.totalBuyCost, 1002.3);
+  assert.equal(result.totalSalesProceeds, 478.85);
+  assert.equal(result.totalFees, 3.45);
+  assert.equal(result.totalBoughtQuantity, 100);
+  assert.equal(result.totalSoldQuantity, 40);
+  assert.equal(result.netCapitalUsed, 523.45);
+});
+
 test('marketSessionStatus identifies closed session outside Tadawul hours', () => {
   const friday = new Date('2026-06-12T12:00:00+03:00');
   assert.equal(marketSessionStatus(friday).state, 'مغلق');

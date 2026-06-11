@@ -7,6 +7,7 @@ let companies = fallbackCompanies;
 let opportunities = rankOpportunities(companies);
 let selectedSymbol = opportunities[0]?.symbol;
 let portfolioHoldings = loadHoldings();
+let portfolioCapital = loadCapital();
 let activeTab = 'dashboard';
 let lastRefresh = new Date();
 
@@ -16,6 +17,13 @@ function loadHoldings() {
 }
 function saveHoldings() {
   localStorage.setItem('saudi-stock-holdings', JSON.stringify(portfolioHoldings));
+}
+function loadCapital() {
+  try { return Number(localStorage.getItem('saudi-stock-capital')) || 0; }
+  catch { return 0; }
+}
+function saveCapital() {
+  localStorage.setItem('saudi-stock-capital', String(portfolioCapital));
 }
 
 async function loadLiveSnapshot() {
@@ -118,14 +126,29 @@ function companyRows(rows) {
 }
 
 function portfolioView(portfolio) {
+  const remainingCapital = portfolioCapital ? portfolioCapital - (portfolio.netCapitalUsed ?? 0) : 0;
   return `<section class="panel wide"><div class="section-title"><h2>المحفظة التجريبية</h2><span>${SAR.format(portfolio.totalValue)} — ${fmtPct(portfolio.pnlPct)}</span></div>
     <p class="helper-note">أضفت لك سجل عمليات مثل الإكسل: عمليات شراء، عمليات بيع، ونتيجة الصفقة. النظام يحسب صافي البيع بعد عمولة البنك والضريبة، ويعرض الحالة: منتهي إذا تم بيع كامل الكمية أو لم ينتهي إذا بقيت أسهم.</p>
+    <form id="capitalForm" class="capital-form">
+      <label>رأس المال</label>
+      <input name="capital" type="number" step="0.01" min="0" value="${portfolioCapital || ''}" placeholder="اكتب رأس المال المتاح">
+      <button>حفظ رأس المال</button>
+      <span>${portfolioCapital ? `المتبقي من رأس المال: ${SAR.format(remainingCapital)}` : 'أضف رأس المال عشان يحسب لك المتبقي بعد الشراء والبيع.'}</span>
+    </form>
     <div class="portfolio-summary">
+      ${metric('رأس المال', portfolioCapital ? SAR.format(portfolioCapital) : 'غير محدد', 'neutral')}
+      ${metric('المتبقي من رأس المال', portfolioCapital ? SAR.format(remainingCapital) : '—', remainingCapital >= 0 ? 'up' : 'down')}
       ${metric('تكلفة الأسهم المتبقية', SAR.format(portfolio.totalCost), 'neutral')}
       ${metric('القيمة الحالية', SAR.format(portfolio.totalValue), 'neutral')}
-      ${metric('ربح/خسارة محقق من البيع', SAR.format(portfolio.realizedPnl ?? 0), (portfolio.realizedPnl ?? 0) >= 0 ? 'up' : 'down')}
-      ${metric('ربح/خسارة غير محقق', SAR.format(portfolio.unrealizedPnl ?? portfolio.pnl), (portfolio.unrealizedPnl ?? portfolio.pnl) >= 0 ? 'up' : 'down')}
+      ${metric('الربح/الخسارة الكاملة', `${SAR.format(portfolio.pnl)} (${fmtPct(portfolio.pnlPct)})`, portfolio.pnl >= 0 ? 'up' : 'down')}
       ${metric('صفقات مفتوحة / منتهية', `${portfolio.openDeals ?? portfolio.rows.length} / ${portfolio.closedDeals ?? 0}`, 'neutral')}
+    </div>
+    <div class="operations-total-bar">
+      ${metric('إجمالي عمليات الشراء', `${SAR.format(portfolio.totalBuyCost ?? 0)} / ${NUM.format(portfolio.totalBoughtQuantity ?? 0)} سهم`, 'neutral')}
+      ${metric('إجمالي عمليات البيع', `${SAR.format(portfolio.totalSalesProceeds ?? 0)} / ${NUM.format(portfolio.totalSoldQuantity ?? 0)} سهم`, 'neutral')}
+      ${metric('صافي المستخدم من رأس المال', SAR.format(portfolio.netCapitalUsed ?? 0), (portfolio.netCapitalUsed ?? 0) <= portfolioCapital || !portfolioCapital ? 'neutral' : 'down')}
+      ${metric('مجموع العمولات والضرائب', SAR.format(portfolio.totalFees ?? 0), 'neutral')}
+      ${metric('محقق / غير محقق', `${SAR.format(portfolio.realizedPnl ?? 0)} / ${SAR.format(portfolio.unrealizedPnl ?? 0)}`, portfolio.pnl >= 0 ? 'up' : 'down')}
     </div>
     <div class="operation-forms">
       <form id="holdingForm" class="holding-form lots-form">
@@ -214,6 +237,16 @@ function bindEvents() {
     const rows = opportunities.filter((s) => `${s.name} ${s.symbol} ${s.sector}`.toLowerCase().includes(q));
     document.querySelector('#companiesTable tbody').innerHTML = companyRows(rows);
     document.querySelectorAll('#companiesTable [data-symbol]').forEach((el) => el.addEventListener('click', () => { selectedSymbol = el.dataset.symbol; render(); }));
+  });
+  document.querySelector('#capitalForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    portfolioCapital = Number(form.get('capital')) || 0;
+    saveCapital(); render();
+  });
+  document.querySelector('#capitalForm input')?.addEventListener('change', (event) => {
+    portfolioCapital = Number(event.target.value) || 0;
+    saveCapital(); render();
   });
   document.querySelector('#holdingForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
