@@ -119,8 +119,9 @@ function companyRows(rows) {
 
 function portfolioView(portfolio) {
   return `<section class="panel wide"><div class="section-title"><h2>المحفظة التجريبية</h2><span>${SAR.format(portfolio.totalValue)} — ${fmtPct(portfolio.pnlPct)}</span></div>
-    <form id="holdingForm" class="holding-form"><select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select><input name="quantity" type="number" min="1" placeholder="الكمية" required><input name="avgCost" type="number" step="0.01" min="0" placeholder="متوسط التكلفة" required><button>إضافة</button></form>
-    <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>الكمية</th><th>متوسطك</th><th>السعر</th><th>القيمة</th><th>الربح/الخسارة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h, i) => `<tr><td>${h.symbol}</td><td>${h.quantity}</td><td>${SAR.format(h.avgCost)}</td><td>${SAR.format(h.price)}</td><td>${SAR.format(h.value)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove="${i}">حذف</button></td></tr>`).join('')}</tbody></table></div>
+    <p class="helper-note">متوسط سعر الشراء = السعر المتوسط الذي اشتريت به السهم الواحد. مثال: إذا اشتريت 100 سهم بسعر 50 ريال، اكتب 50 وليس إجمالي المبلغ.</p>
+    <form id="holdingForm" class="holding-form"><select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select><input name="quantity" type="number" min="1" placeholder="عدد الأسهم" required><input name="avgCost" type="number" step="0.01" min="0" placeholder="متوسط سعر الشراء للسهم" title="اكتب سعر شراء السهم الواحد، وليس إجمالي قيمة الصفقة" required><button>إضافة</button></form>
+    <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>الكمية</th><th>متوسط سعر الشراء</th><th>السعر الحالي</th><th>القيمة الحالية</th><th>الربح/الخسارة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h, i) => `<tr><td>${h.symbol}</td><td>${h.quantity}</td><td>${SAR.format(h.avgCost)}</td><td>${SAR.format(h.price)}</td><td>${SAR.format(h.value)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove="${i}">حذف</button></td></tr>`).join('')}</tbody></table></div>
   </section>`;
 }
 
