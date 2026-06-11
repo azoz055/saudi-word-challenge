@@ -119,10 +119,21 @@ function companyRows(rows) {
 
 function portfolioView(portfolio) {
   return `<section class="panel wide"><div class="section-title"><h2>المحفظة التجريبية</h2><span>${SAR.format(portfolio.totalValue)} — ${fmtPct(portfolio.pnlPct)}</span></div>
-    <p class="helper-note">متوسط سعر الشراء = السعر المتوسط الذي اشتريت به السهم الواحد. مثال: إذا اشتريت 100 سهم بسعر 50 ريال، اكتب 50 وليس إجمالي المبلغ.</p>
-    <form id="holdingForm" class="holding-form"><select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select><input name="quantity" type="number" min="1" placeholder="عدد الأسهم" required><input name="avgCost" type="number" step="0.01" min="0" placeholder="متوسط سعر الشراء للسهم" title="اكتب سعر شراء السهم الواحد، وليس إجمالي قيمة الصفقة" required><button>إضافة</button></form>
-    <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>الكمية</th><th>متوسط سعر الشراء</th><th>السعر الحالي</th><th>القيمة الحالية</th><th>الربح/الخسارة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h, i) => `<tr><td>${h.symbol}</td><td>${h.quantity}</td><td>${SAR.format(h.avgCost)}</td><td>${SAR.format(h.price)}</td><td>${SAR.format(h.value)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove="${i}">حذف</button></td></tr>`).join('')}</tbody></table></div>
+    <p class="helper-note">أضف كل عملية شراء لوحدها لنفس الشركة. النظام يجمع الكميات تلقائياً ويحسب متوسط سعر الشراء شامل عمولة البنك وضريبة الشراء. إذا تركت الضريبة فاضية يحسبها 15٪ من العمولة.</p>
+    <form id="holdingForm" class="holding-form lots-form">
+      <select name="symbol">${companies.map((s) => `<option value="${s.symbol}">${s.symbol} — ${s.name}</option>`).join('')}</select>
+      <input name="quantity" type="number" min="1" placeholder="عدد الأسهم في العملية" required>
+      <input name="price" type="number" step="0.01" min="0" placeholder="سعر الشراء للسهم" required>
+      <input name="commission" type="number" step="0.01" min="0" placeholder="عمولة البنك">
+      <input name="tax" type="number" step="0.01" min="0" placeholder="ضريبة الشراء">
+      <button>إضافة عملية شراء</button>
+    </form>
+    <div class="table-wrap"><table><thead><tr><th>الرمز</th><th>عدد عمليات الشراء</th><th>إجمالي الكمية</th><th>متوسط سعر الشراء شامل الرسوم</th><th>إجمالي الرسوم</th><th>السعر الحالي</th><th>القيمة الحالية</th><th>الربح/الخسارة</th><th></th></tr></thead><tbody>${portfolio.rows.map((h) => `<tr><td>${h.symbol}</td><td>${h.lots.length}</td><td>${h.quantity}</td><td>${SAR.format(h.avgCost)}</td><td>${SAR.format(h.fees)}</td><td>${SAR.format(h.price)}</td><td>${SAR.format(h.value)}</td><td class="${h.pnl >= 0 ? 'up':'down'}">${SAR.format(h.pnl)} (${fmtPct(h.pnlPct)})</td><td><button class="ghost" data-remove-symbol="${h.symbol}">حذف الشركة</button></td></tr><tr class="lot-row"><td colspan="9">${lotDetails(h)}</td></tr>`).join('')}</tbody></table></div>
   </section>`;
+}
+
+function lotDetails(holding) {
+  return `<div class="lots-list">${holding.lots.map((lot, index) => `<div><b>شراء ${index + 1}</b><span>${NUM.format(lot.quantity)} سهم × ${SAR.format(lot.price)}</span><span>عمولة: ${SAR.format(lot.commission)} — ضريبة: ${SAR.format(lot.tax)}</span><span>تكلفة العملية: ${SAR.format(lot.cost)}</span><button class="ghost mini" data-remove-lot="${holding.symbol}:${index}">حذف العملية</button></div>`).join('')}</div>`;
 }
 
 function opportunitiesView() {
@@ -165,10 +176,56 @@ function bindEvents() {
   document.querySelector('#holdingForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    portfolioHoldings.push({ symbol: form.get('symbol'), quantity: Number(form.get('quantity')), avgCost: Number(form.get('avgCost')) });
+    const commission = Number(form.get('commission')) || 0;
+    const taxInput = form.get('tax');
+    const tax = taxInput === '' || taxInput === null ? Math.round(commission * 15) / 100 : Number(taxInput) || 0;
+    addPurchaseLot({
+      symbol: form.get('symbol'),
+      quantity: Number(form.get('quantity')),
+      price: Number(form.get('price')),
+      commission,
+      tax,
+      date: new Date().toISOString(),
+    });
     saveHoldings(); render();
   });
-  document.querySelectorAll('[data-remove]').forEach((btn) => btn.addEventListener('click', () => { portfolioHoldings.splice(Number(btn.dataset.remove), 1); saveHoldings(); render(); }));
+  document.querySelectorAll('[data-remove-symbol]').forEach((btn) => btn.addEventListener('click', () => {
+    portfolioHoldings = portfolioHoldings.filter((holding) => holding.symbol !== btn.dataset.removeSymbol);
+    saveHoldings(); render();
+  }));
+  document.querySelectorAll('[data-remove-lot]').forEach((btn) => btn.addEventListener('click', () => {
+    const [symbol, indexText] = btn.dataset.removeLot.split(':');
+    removePurchaseLot(symbol, Number(indexText));
+    saveHoldings(); render();
+  }));
+}
+
+function addPurchaseLot(lot) {
+  const existing = portfolioHoldings.find((holding) => holding.symbol === lot.symbol);
+  if (!existing) {
+    portfolioHoldings.push({ symbol: lot.symbol, lots: [lot] });
+    return;
+  }
+  if (!Array.isArray(existing.lots)) {
+    existing.lots = [{ quantity: existing.quantity, price: existing.price ?? existing.avgCost, commission: existing.commission ?? 0, tax: existing.tax ?? 0, date: existing.date }];
+    delete existing.quantity;
+    delete existing.avgCost;
+    delete existing.price;
+    delete existing.commission;
+    delete existing.tax;
+  }
+  existing.lots.push(lot);
+}
+
+function removePurchaseLot(symbol, lotIndex) {
+  const holding = portfolioHoldings.find((item) => item.symbol === symbol);
+  if (!holding) return;
+  if (!Array.isArray(holding.lots)) {
+    portfolioHoldings = portfolioHoldings.filter((item) => item.symbol !== symbol);
+    return;
+  }
+  holding.lots.splice(lotIndex, 1);
+  if (holding.lots.length === 0) portfolioHoldings = portfolioHoldings.filter((item) => item.symbol !== symbol);
 }
 
 await loadLiveSnapshot();

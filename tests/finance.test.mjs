@@ -61,7 +61,7 @@ test('rankOpportunities sorts high scoring ideas first and blocks unsafe rows', 
   assert.ok(ranked[1].warnings.length > 0);
 });
 
-test('calculatePortfolio returns total value and P/L', () => {
+test('calculatePortfolio returns total value and P/L for legacy average-cost holdings', () => {
   const holdings = [
     { symbol: '2222', quantity: 100, avgCost: 30 },
     { symbol: '1120', quantity: 10, avgCost: 35 },
@@ -71,6 +71,37 @@ test('calculatePortfolio returns total value and P/L', () => {
   assert.equal(result.totalCost, 3350);
   assert.equal(result.totalValue, 3430);
   assert.equal(result.pnl, 80);
+});
+
+test('calculatePortfolio aggregates multiple purchases of the same stock including bank commission and tax', () => {
+  const holdings = [
+    { symbol: '2082', lots: [
+      { quantity: 10, price: 100, commission: 1.55, tax: 0.23 },
+      { quantity: 5, price: 120, commission: 1.00, tax: 0.15 },
+    ]},
+  ];
+  const prices = { '2082': 130 };
+  const result = calculatePortfolio(holdings, prices);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].quantity, 15);
+  assert.equal(result.rows[0].cost, 1602.93);
+  assert.equal(result.rows[0].avgCost, 106.862);
+  assert.equal(result.rows[0].fees, 2.93);
+  assert.equal(result.rows[0].value, 1950);
+  assert.equal(result.rows[0].pnl, 347.07);
+});
+
+test('calculatePortfolio merges repeated holding rows for the same symbol into one average', () => {
+  const holdings = [
+    { symbol: '2222', quantity: 100, avgCost: 30, commission: 2, tax: 0.3 },
+    { symbol: '2222', quantity: 50, avgCost: 33, commission: 2, tax: 0.3 },
+  ];
+  const result = calculatePortfolio(holdings, { '2222': 34 });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].quantity, 150);
+  assert.equal(result.rows[0].cost, 4654.6);
+  assert.equal(result.rows[0].avgCost, 31.031);
+  assert.equal(result.rows[0].lots.length, 2);
 });
 
 test('marketSessionStatus identifies closed session outside Tadawul hours', () => {

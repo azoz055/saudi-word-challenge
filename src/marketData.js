@@ -37,8 +37,11 @@ export const socialSignals = [
 ];
 
 export const defaultHoldings = [
-  { symbol: '2222', quantity: 120, avgCost: 30.4 },
-  { symbol: '1120', quantity: 35, avgCost: 84.2 },
-  { symbol: '2082', quantity: 8, avgCost: 362 },
-  { symbol: '4300', quantity: 250, avgCost: 14.6 },
+  { symbol: '2222', lots: [{ quantity: 120, price: 30.4, commission: 5.65, tax: 0.85 }] },
+  { symbol: '1120', lots: [{ quantity: 35, price: 84.2, commission: 4.57, tax: 0.69 }] },
+  { symbol: '2082', lots: [
+    { quantity: 5, price: 362, commission: 2.81, tax: 0.42 },
+    { quantity: 3, price: 374, commission: 1.74, tax: 0.26 },
+  ]},
+  { symbol: '4300', lots: [{ quantity: 250, price: 14.6, commission: 5.66, tax: 0.85 }] },
 ];

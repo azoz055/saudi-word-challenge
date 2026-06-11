@@ -105,17 +105,59 @@ export function rankOpportunities(stocks) {
   return stocks.map(analyzeStock).sort((a, b) => b.score - a.score);
 }
 
+function roundMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function roundAverage(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 1000) / 1000;
+}
+
+export function normalizeLots(holding) {
+  const sourceLots = Array.isArray(holding.lots) && holding.lots.length
+    ? holding.lots
+    : [{
+        quantity: holding.quantity,
+        price: holding.price ?? holding.avgCost,
+        commission: holding.commission ?? 0,
+        tax: holding.tax ?? 0,
+        date: holding.date,
+      }];
+  return sourceLots
+    .map((lot) => {
+      const quantity = Number(lot.quantity) || 0;
+      const price = Number(lot.price ?? lot.avgCost) || 0;
+      const commission = Number(lot.commission) || 0;
+      const tax = Number(lot.tax) || 0;
+      const gross = quantity * price;
+      const cost = roundMoney(gross + commission + tax);
+      return { ...lot, quantity, price, commission, tax, gross: roundMoney(gross), cost };
+    })
+    .filter((lot) => lot.quantity > 0);
+}
+
 export function calculatePortfolio(holdings, priceMap) {
-  const rows = holdings.map((holding) => {
-    const price = priceMap[holding.symbol] ?? holding.avgCost;
-    const cost = holding.quantity * holding.avgCost;
-    const value = holding.quantity * price;
-    const pnl = value - cost;
-    return { ...holding, price, cost, value, pnl, pnlPct: cost ? (pnl / cost) * 100 : 0 };
+  const grouped = new Map();
+  for (const holding of holdings) {
+    const symbol = holding.symbol;
+    if (!symbol) continue;
+    const lots = normalizeLots(holding);
+    if (!grouped.has(symbol)) grouped.set(symbol, { symbol, lots: [] });
+    grouped.get(symbol).lots.push(...lots);
+  }
+  const rows = [...grouped.values()].map((group) => {
+    const quantity = group.lots.reduce((sum, lot) => sum + lot.quantity, 0);
+    const cost = roundMoney(group.lots.reduce((sum, lot) => sum + lot.cost, 0));
+    const fees = roundMoney(group.lots.reduce((sum, lot) => sum + lot.commission + lot.tax, 0));
+    const avgCost = quantity ? roundAverage(cost / quantity) : 0;
+    const price = priceMap[group.symbol] ?? avgCost;
+    const value = roundMoney(quantity * price);
+    const pnl = roundMoney(value - cost);
+    return { ...group, quantity, avgCost, price, cost, value, pnl, fees, pnlPct: cost ? (pnl / cost) * 100 : 0 };
   });
-  const totalCost = rows.reduce((sum, row) => sum + row.cost, 0);
-  const totalValue = rows.reduce((sum, row) => sum + row.value, 0);
-  const pnl = totalValue - totalCost;
+  const totalCost = roundMoney(rows.reduce((sum, row) => sum + row.cost, 0));
+  const totalValue = roundMoney(rows.reduce((sum, row) => sum + row.value, 0));
+  const pnl = roundMoney(totalValue - totalCost);
   return { rows, totalCost, totalValue, pnl, pnlPct: totalCost ? (pnl / totalCost) * 100 : 0 };
 }
 
