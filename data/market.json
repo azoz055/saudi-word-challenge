@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T16:56:48.753Z",
+  "generatedAt": "2026-06-21T17:29:50.346Z",
   "companies": [
     {
       "symbol": "2030",
@@ -53,8 +53,8 @@
       "sector": "الطاقة",
       "price": 26.459999084472656,
       "change": -0.22624951830817314,
-      "volume": 4040831,
-      "avgVolume": 11458808,
+      "volume": 4338158,
+      "avgVolume": 11473675,
       "newsImpact": 13,
       "sentiment": 5,
       "closes": [
@@ -818,8 +818,8 @@
       "sector": "المواد الأساسية",
       "price": 129.60000610351562,
       "change": 0.9345889907118654,
-      "volume": 272532,
-      "avgVolume": 489880,
+      "volume": 347212,
+      "avgVolume": 493614,
       "newsImpact": 7,
       "sentiment": 2,
       "closes": [
@@ -1313,8 +1313,8 @@
       "sector": "المواد الأساسية",
       "price": 13.729999542236328,
       "change": -1.7882690142063367,
-      "volume": 681961,
-      "avgVolume": 597290,
+      "volume": 1079204,
+      "avgVolume": 617152,
       "newsImpact": 10,
       "sentiment": -1,
       "closes": [
@@ -1358,8 +1358,8 @@
       "sector": "المواد الأساسية",
       "price": 30,
       "change": 1.694915254237288,
-      "volume": 941468,
-      "avgVolume": 787385,
+      "volume": 1106082,
+      "avgVolume": 795616,
       "newsImpact": 11,
       "sentiment": 0,
       "closes": [
