@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T16:47:04.637Z",
+  "generatedAt": "2026-07-05T17:20:05.995Z",
   "companies": [
     {
       "symbol": "2030",
@@ -8588,8 +8588,8 @@
       "sector": "التأمين",
       "price": 147.5,
       "change": -0.33783783783783783,
-      "volume": 88642,
-      "avgVolume": 377129,
+      "volume": 824801,
+      "avgVolume": 413937,
       "newsImpact": 12,
       "sentiment": 0,
       "closes": [
